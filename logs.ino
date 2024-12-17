@@ -83,13 +83,60 @@ void updateCurrentIndex(uint16_t index) {
   EEPROM_Write(CURRENT_INDEX_ADDR, index & 0xFF);
   EEPROM_Write(CURRENT_INDEX_ADDR + 1, (index >> 8) & 0xFF);
 }
-void sendChar(char c) {
-  while (!(UCSR0A & (1 << UDRE0))); // Wait until the transmit buffer is empty
-  UDR0 = c; // Send the character
+
+void printAllLogs() {
+  USART_Transmit_String("\n=== Access History ===\n");
+
+  bool hasLogs = false;
+  for (uint16_t i = 0; i < MAX_LOGS; i++) {
+    char logValue = EEPROM_Read(LOGS_START_ADDR + i);
+    if (logValue == '1' || logValue == '0') {
+      hasLogs = true;
+      USART_Transmit_String("Log #");
+      USART_Transmit_Number(i);
+      USART_Transmit_String(": ");
+      printLogResult(logValue);
+    }
+  }
+
+  if (!hasLogs) {
+    USART_Transmit_String("No access attempts recorded yet.\n");
+  }
+
+  USART_Transmit_String("=== End of History ===\n\n");
 }
 
-void sendString(const char *str) {
+void USART_Init(unsigned int baud) {
+  unsigned int ubrr = F_CPU / 16 / baud - 1;
+  UBRR0H = (unsigned char)(ubrr >> 8);
+  UBRR0L = (unsigned char)ubrr;
+  UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+  UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+}
+
+void USART_Transmit(unsigned char data) {
+  while (!(UCSR0A & (1 << UDRE0)));
+  UDR0 = data;
+}
+
+void USART_Transmit_String(const char *str) {
   while (*str) {
-    sendChar(*str++);
+    USART_Transmit(*str++);
   }
 }
+
+unsigned char USART_Receive(void) {
+  while (!(UCSR0A & (1 << RXC0)));
+  return UDR0;
+}
+
+bool USART_DataAvailable() {
+  return (UCSR0A & (1 << RXC0));
+}
+
+void USART_Transmit_Number(uint16_t number) {
+  char buffer[10];
+  itoa(number, buffer, 10);
+  USART_Transmit_String(buffer);
+}
+
