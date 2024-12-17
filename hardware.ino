@@ -83,6 +83,17 @@ void failureFeedback(volatile uint8_t *port, uint8_t greenPin, uint8_t redPin) {
   Tone(BUZZER_PIN, 200, 1000);
 }
 
+
+void Tone(uint8_t pin, uint16_t frequency, uint16_t duration) {
+  uint16_t delay = 1000000 / (frequency * 2); // Microseconds per half-wave
+  uint16_t cycles = (frequency * duration) / 1000; // Total cycles
+
+  for (uint16_t i = 0; i < cycles; i++) {
+    PORTD ^= (1 << PORTD5); // Toggle BUZZER_PIN
+    _delay_us(delay);
+  }
+}
+
 void sendChar(char c) {
   while (!(UCSR0A & (1 << UDRE0))); // Wait until the transmit buffer is empty
   UDR0 = c; // Send the character
